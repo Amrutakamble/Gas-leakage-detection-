@@ -1,0 +1,209 @@
+// Code for Analog to Digital Converter (It helps out to convert Analog data from the environment and a converting into the digital
+figures. We used MCP3008 module as a Analog to digital converter.)
+
+from spidev import SpiDev
+class MCP3008:
+def __init__(self, bus = 0, device = 0):
+self.bus, self.device = bus, device
+self.spi = SpiDev()
+self.open()
+self.spi.max_speed_hz = 1000000 # 1MHz
+def open(self):
+self.spi.open(self.bus, self.device)
+
+Gas Leakage Detection & Smart Alert System Using IOT 2019-20
+
+27
+
+Atharva College of Engineering
+self.spi.max_speed_hz = 1000000 # 1MHz
+def read(self, channel = 0):
+cmd1 = 4 | 2 | (( channel & 4) >> 2)
+cmd2 = (channel & 3) << 6
+adc = self.spi.xfer2([cmd1, cmd2, 0])
+data = ((adc[1] & 15) << 8) + adc[2]
+return data
+def close(self):
+self.spi.close() 
+
+//Code for MQ2 sensor
+
+# adapted from sandboxelectronics.com/?p=165
+import time
+import math
+from MCP3008 import MCP3008
+class MQ():
+######################### Hardware Related Macros #########################
+MQ_PIN = 0 # define which analog input channel you are going to use
+(MCP3008)
+RL_VALUE = 5 # define the load resistance on the board, in kilo ohms
+RO_CLEAN_AIR_FACTOR = 9.83 # RO_CLEAR_AIR_FACTOR=(Sensor
+resistance in clean air)/RO,
+# which is derived from the chart in datasheet
+######################### Software Related Macros #########################
+CALIBARAION_SAMPLE_TIMES = 50 # define how many samples you are going
+to take in the calibration phase
+CALIBRATION_SAMPLE_INTERVAL = 500 # define the time interval(in milisecond)
+between each samples in the
+# cablibration phase
+READ_SAMPLE_INTERVAL = 50 # define the time interval(in milisecond) between
+each samples in
+READ_SAMPLE_TIMES = 5 # define how many samples you are going to take
+in normal operation
+# normal operation
+######################### Application Related Macros ######################
+GAS_LPG = 0
+GAS_CO = 1
+GAS_SMOKE = 2
+def __init__(self, Ro=10, analogPin=0):
+self.Ro = Ro
+self.MQ_PIN = analogPin
+self.adc = MCP3008()
+self.LPGCurve = [2.3,0.21,-0.47] # two points are taken from the curve.
+self.COCurve = [2.3,0.72,-0.34]
+self.SmokeCurve =[2.3,0.53,-0.44]
+print("Calibrating...")
+self.Ro = self.MQCalibration(self.MQ_PIN)
+print("Calibration is done...\n")
+print("Ro=%f kohm" % self.Ro)
+def MQPercentage(self):
+val = {}
+read = self.MQRead(self.MQ_PIN)
+val["GAS_LPG"] = self.MQGetGasPercentage(read/self.Ro, self.GAS_LPG)
+val["CO"] = self.MQGetGasPercentage(read/self.Ro, self.GAS_CO)
+val["SMOKE"] = self.MQGetGasPercentage(read/self.Ro, self.GAS_SMOKE)
+return val
+def MQResistanceCalculation(self, raw_adc):
+return float(self.RL_VALUE*(1023.0-raw_adc)/float(raw_adc));
+def MQCalibration(self, mq_pin):
+val = 0.0
+for i in range(self.CALIBARAION_SAMPLE_TIMES): # take multiple samples
+val += self.MQResistanceCalculation(self.adc.read(mq_pin))
+time.sleep(self.CALIBRATION_SAMPLE_INTERVAL/1000.0)
+val = val/self.CALIBARAION_SAMPLE_TIMES # calculate the average value
+val = val/self.RO_CLEAN_AIR_FACTOR # divided by
+RO_CLEAN_AIR_FACTOR yields the Ro # according
+to the chart in the datasheet
+return val
+def MQRead(self, mq_pin):
+rs = 0.0
+for i in range(self.READ_SAMPLE_TIMES):
+rs += self.MQResistanceCalculation(self.adc.read(mq_pin))
+time.sleep(self.READ_SAMPLE_INTERVAL/1000.0)
+rs = rs/self.READ_SAMPLE_TIMES
+return rs
+def MQGetGasPercentage(self, rs_ro_ratio, gas_id):
+if ( gas_id == self.GAS_LPG ):
+return self.MQGetPercentage(rs_ro_ratio, self.LPGCurve)
+elif ( gas_id == self.GAS_CO ):
+return self.MQGetPercentage(rs_ro_ratio, self.COCurve)
+elif ( gas_id == self.GAS_SMOKE ):
+return self.MQGetPercentage(rs_ro_ratio, self.SmokeCurve)
+return 0
+def MQGetPercentage(self, rs_ro_ratio, pcurve):
+return (math.pow(10,( ((math.log(rs_ro_ratio)-pcurve[1])/ pcurve[2]) + pcurve[0])))
+
+
+
+//Code for Sending an email (Code for Sending an email as a alert to user with the help of SMTP.)
+
+import smtplib
+sender_email="rathodlucky98@gmail.com"
+rec_email="laxmanrathod455@gmail.com"
+password=26114444
+subject="!!Gas Alert!!"
+msg="Gas Leakage is Detected click on this link for more
+Informationhttps://thingspeak.com/channels/1020288 "
+message=message='subject: {}\n\n{}'.format(subject,msg)
+server=smtplib.SMTP('smtp.gmail.com',587)
+server.starttls()
+server.login(sender_email,password)
+print("Login Success")
+server.sendmail(sender_email,rec_email,message)
+print("Email has been sent to",rec_email)
+
+//Code for Sending a sms as alert (Sending a sms as alert to user with the help of Twilo’s web service.)
+
+from twilio.rest import Client
+account_sid = 'AC992e107573b40cdff2aa865709dc37e0'
+auth_token = '422f4e165237b8a616ed1ecd1a28a826'
+client = Client(account_sid, auth_token)
+message = client.messages \
+.create(
+body='LPG GAS SENSOR VALUE:987 GAS LEAKAGE DETECTED. FOR MORE
+INFORMATION CLICK ON THIS LINK https://thingspeak.com/channels/1020288',
+from_='+17632735959',
+to='+918291622348')
+
+//Integrated Code (Integrated all the codes and making a one common file main,py to execute)
+
+import urllib
+from mq import *
+import sys, time
+import RPi.GPIO as GPIO
+from time import sleep
+import requests
+import json
+import threading
+import smtplib
+#email details
+sender_email="rathodlucky98@gmail.com"
+rec_email="laxmanrathod455@gmail.com"
+password=26114444
+subject="!!Gas Alert!!"
+msg="Gas Leakage is Detected click on this link for more
+Informationhttps://thingspeak.com/channels/1020288 "
+message='subject: {}\n\n{}'.format(subject,msg)
+server=smtplib.SMTP('smtp.gmail.com',587)
+server.starttls()
+server.login(sender_email,password)
+def thingspeak_post():
+threading.Timer(15,thingspeak_post).start()
+URl='https://api.thingspeak.com/update?api_key='
+KEY='8NF9WTBFMAWOADDE'
+HEADER='&field1={}'.format(perc["GAS_LPG"])
+NEW_URL = URl+KEY+HEADER
+print(NEW_URL)
+data=urllib.request.urlopen(NEW_URL)
+print(data)
+try:
+print("Press CTRL+C to abort.")
+mq = MQ();
+while True:
+perc = mq.MQPercentage()
+sys.stdout.write("\r")
+sys.stdout.write("\033[K")
+sys.stdout.write("LPG: %g ppm, CO: %g ppm, Smoke: %g ppm" % (perc["GAS_LPG"],
+perc["CO"], perc["SMOKE"]))
+sys.stdout.flush()
+time.sleep(0.1)
+if perc["GAS_LPG"]>3: #checking threshold value
+#server.sendmail(sender_email,rec_email,message)
+thingspeak_post(); #sending data on thingspeak
+#Disable warnings (optional)
+GPIO.setwarnings(False)
+#Select GPIO mode
+GPIO.setmode(GPIO.BCM)
+#Set buzzer - pin 17 as output
+buzzer=17
+GPIO.setup(buzzer,GPIO.OUT)
+print(perc["GAS_LPG"])
+if perc["GAS_LPG"]>11:
+server.sendmail(sender_email,rec_email,message)
+while True:
+GPIO.output(buzzer,GPIO.HIGH)
+print ("Beep")
+sleep(0.5) # Delay in seconds
+GPIO.output(buzzer,GPIO.LOW)
+print ("No Beep")
+sleep(0.5)
+break;
+else:
+sys.stdout.write("\r")
+sys.stdout.write("\033[K")
+sys.stdout.write("LPG: %g ppm, CO: %g ppm, Smoke: %g ppm" %
+(perc["GAS_LPG"], perc["CO"], perc["SMOKE"]))
+sys.stdout.flush()
+time.sleep(0.1)
+except:
+print("abort by user")
