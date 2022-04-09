@@ -15,7 +15,7 @@ Gas Leakage Detection & Smart Alert System Using IOT 2019-20
 
 27
 
-Atharva College of Engineering
+
 self.spi.max_speed_hz = 1000000 # 1MHz
 def read(self, channel = 0):
 cmd1 = 4 | 2 | (( channel & 4) >> 2)
